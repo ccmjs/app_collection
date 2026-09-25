@@ -1,0 +1,54 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>App Collection integration tests</title>
+<script src="../libs/framework/ccm.js"></script><pre id="results">Running…</pre><main></main>
+<script type="module">
+import { component } from '../ccm.app_collection.mjs';
+const results = document.querySelector('#results');
+const lines = [];
+const assert = (value, text) => { if (!value) throw Error(text); lines.push('PASS ' + text); };
+const tick = () => new Promise(resolve => setTimeout(resolve, 25));
+const wait = async predicate => { for(let i=0;i<100;i++) { if(predicate()) return; await tick(); } throw Error('Timed out'); };
+let starts = 0, destroyed = 0, fail = true, unblock;
+const child = { name: 'test_child', ccm: '../libs/framework/ccm.js', config: {}, Instance: function() {
+  this.start = async () => {
+    starts++;
+    if (this.mode === 'fail' && fail) { fail = false; throw Error('Expected test failure'); }
+    if (this.mode === 'slow') await new Promise(resolve => unblock = resolve);
+    const input = document.createElement('input'); input.value = 'Initial'; this.element.append(input);
+  };
+  this.destroy = async () => { destroyed++; };
+} };
+const dependency = mode => ['ccm.start', child, {mode}];
+let app;
+try {
+  app = await ccm.start({ ...component, ccm: '../libs/framework/ccm.js' }, { css: ['ccm.load', '../resources/styles.css'], ignore: [
+    {title:'Widget',type:'widget',app:dependency(),width:2,height:2},
+    {title:'Folder',items:[{title:'Child',app:dependency()}]},
+    {title:'Retry',app:dependency('fail')},
+    {title:'Slow',app:dependency('slow')},
+  ] }, document.querySelector('main'));
+  const button = name => [...app.element.querySelectorAll('button')].find(el => el.textContent.includes(name));
+  await wait(() => app.element.querySelector('.ac-widget input') || starts === 1);
+  assert(starts === 1, 'Only the widget starts on initial render');
+  button('Folder').click(); button('Child').click();
+  await wait(() => starts === 2 && !app.element.querySelector('[aria-busy]'));
+  const view = app.element.querySelector('.ac-view:not([hidden])');
+  const childHost = view.querySelector('.ac-child').firstElementChild;
+  const field = childHost.shadowRoot.querySelector('input'); field.value = 'Preserved';
+  button('Zurück').click(); button('Child').click();
+  assert(starts === 2 && field.value === 'Preserved', 'Reopening preserves instance and input');
+  button('Übersicht').click(); button('Retry').click();
+  await wait(() => button('Erneut versuchen'));
+  button('Erneut versuchen').click();
+  await wait(() => !app.element.querySelector('[aria-busy]'));
+  assert(starts === 4 && !button('Erneut versuchen'), 'A failed child can be retried');
+  button('Übersicht').click(); button('Slow').click();
+  await wait(() => unblock);
+  const closing = app.destroy(); unblock(); await closing;
+  assert(app.element.children.length === 0, 'Destroy clears all views after pending load');
+  assert(destroyed === 5, 'Destroy releases failed, cached and late-arriving children');
+  app.ignore = []; await app.start();
+  assert(app.element.textContent.includes('Hier sind noch keine Apps'), 'Restart renders empty state');
+  await app.destroy();
+  results.textContent = lines.join('\n') + '\nALL PASSED';
+} catch(error) { results.textContent = lines.join('\n') + '\nFAIL ' + error.stack; }
+</script></html>

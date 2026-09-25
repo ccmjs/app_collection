@@ -1,0 +1,25 @@
+:host { display: block; color-scheme: light; }
+.app-collection { --columns: 4; font: 16px/1.5 system-ui, sans-serif; color: #172b38; background: #f4f7fa; padding: clamp(16px, 4vw, 48px); border-radius: 24px; container-type: inline-size; min-height: 420px; }
+.app-collection * { box-sizing: border-box; }
+.app-collection [hidden] { display: none !important; }
+.ac-nav { display: flex; gap: 8px; min-height: 38px; }
+.ac-nav button, .ac-retry { border: 1px solid #c3d1db; background: white; border-radius: 10px; padding: 8px 14px; color: #234e68; cursor: pointer; font: inherit; }
+.ac-heading { font-size: clamp(26px, 4vw, 38px); line-height: 1.2; letter-spacing: -.03em; margin: 20px 0 12px; }
+.ac-description { color: #526676; margin: 0 0 26px; }
+.ac-section { margin: 30px 0; }
+.ac-section-title { font-size: 19px; margin: 0 0 18px; }
+.ac-grid { display: grid; grid-template-columns: repeat(var(--columns), minmax(0, 1fr)); grid-auto-rows: minmax(156px, auto); gap: 18px; align-items: stretch; }
+.ac-tile { font: inherit; color: inherit; border: 1px solid #dce5ed; background: #fff; border-radius: 20px; padding: 22px 12px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; cursor: pointer; min-width: 0; overflow-wrap: anywhere; box-shadow: 0 4px 14px #213d5010; }
+.ac-tile:hover { background: #eaf3f9; border-color: #90b4ce; }
+.ac-icon { display: grid; place-items: center; width: 58px; height: 58px; background: #e4eef6; border-radius: 16px; font-size: 30px; color: #265b7e; }
+.ac-icon img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.ac-tile-title { font-weight: 650; }
+.ac-caption { font-size: 12px; color: #536b7b; }
+.ac-widget { grid-column: span var(--span); grid-row: span var(--rows); background: white; border: 1px solid #dce5ed; border-radius: 20px; padding: 20px; min-width: 0; overflow: auto; }
+.ac-widget-title { margin: 0 0 16px; font-size: 16px; }
+.ac-widget-content, .ac-child { min-width: 0; }
+.ac-empty { grid-column: 1 / -1; color: #526676; }
+.ac-view { min-width: 0; }
+button:focus-visible, .ac-heading:focus-visible { outline: 3px solid #2476aa; outline-offset: 4px; }
+@container (max-width: 640px) { .ac-grid { grid-template-columns: repeat(min(2, var(--columns)), minmax(0, 1fr)); gap: 12px; } .ac-widget { grid-column: span min(2, var(--span)); } }
+@container (max-width: 360px) { .ac-grid { grid-template-columns: minmax(0, 1fr); } .ac-widget { grid-column: span 1; } }
