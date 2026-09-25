@@ -23,3 +23,6 @@
 button:focus-visible, .ac-heading:focus-visible { outline: 3px solid #2476aa; outline-offset: 4px; }
 @container (max-width: 640px) { .ac-grid { grid-template-columns: repeat(min(2, var(--columns)), minmax(0, 1fr)); gap: 12px; } .ac-widget { grid-column: span min(2, var(--span)); } }
 @container (max-width: 360px) { .ac-grid { grid-template-columns: minmax(0, 1fr); } .ac-widget { grid-column: span 1; } }
+
+.ac-header { display: flex; align-items: start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ac-user { margin-left: auto; min-width: 0; max-width: 100%; }

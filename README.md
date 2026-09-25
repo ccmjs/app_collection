@@ -4,9 +4,17 @@ Eine ccmjs-Komponente, die Apps als Kacheln, in Sektionen und Ordnern oder als e
 
 ## Ausprobieren
 
-Im Repository `python3 -m http.server 8765` starten und `http://localhost:8765` öffnen. Die Demo funktioniert ohne externe Dienste. Ihre Beispiel-Apps und der Stundenplan sind Platzhalter; echte Slidecast-, Quiz- oder Kalender-Komponenten werden über dieselben Abhängigkeiten eingebunden.
+Im Repository `python3 -m http.server 8765` starten und `http://localhost:8765` öffnen. Die englische Demo verwendet lokale Kopien von Slidecast, PDF-Viewer und Quiz. Sie zeigt ein Quiz als Widget, PDF-Dokumente, verschachtelte Ordner und einen Slidecast mit Audio und eingebettetem Quiz.
 
-Die Beispielkonfiguration liegt in `resources/configs.mjs`. Die separate `resources/ccm.collection_demo.mjs` enthält ausschließlich die Platzhalter-Komponente.
+Die Beispielkonfiguration liegt in `resources/configs.mjs`. Unter `libs` liegen die Komponenten, ihre Ressourcen und Lizenzen, einschließlich User, Google-Login, ccm-ui und PDF.js. Es gibt keine zusätzliche Demo-Komponente mehr. Die Lerninhalte funktionieren ohne Server; für die tatsächliche Anmeldung wird ein ccm-Server benötigt.
+
+## Gemeinsamer Login
+
+Die optionale Eigenschaft `user` enthält eine `ccm.instance`-Abhängigkeit zur User-Komponente. App Collection hängt deren Host oben rechts ein und ruft danach `start()` auf. Der Bereich bleibt auch in Ordnern und geöffneten Apps sichtbar. `autoLogin: true` wartet vor dem Anzeigen der Inhalte auf die Anmeldung. Ohne `user` oder mit `user: null` entfällt der Bereich.
+
+Die Demo konfiguriert die Server-URL und den Realm zentral in `authentication` in `resources/configs.mjs`. Standard ist `http://localhost:8080`, Realm `ccm`. Ihre Quiz-Apps besitzen jeweils eine eigene User-Instanz mit denselben Werten. Die User-Komponente findet über die Elternkette den gemeinsamen Sitzungsinhaber: Login, Logout, Status und Token werden an ihn delegiert; zusätzliche Login-Oberflächen bleiben leer. Das gilt auch für das Quiz innerhalb des Slidecasts. Apps können den Kontext außerdem über `this.ccm.helper.findInAncestors(this, "user")` lesen. Den Host der übergeordneten User-Instanz nicht in eine Unter-App verschieben.
+
+Google-Login wird lokal aus `libs/google_login` geladen. Das Popup nutzt weiterhin die in der Komponente konfigurierte gehostete Callback-Seite. Für einen eigenen Einsatz müssen Google-Client-ID, erlaubte Callback-Origin und die Konfiguration des ccm-Servers zusammenpassen; eine lokale Callback-Kopie liegt unter `libs/google_login/auth.html`. Der gemeinsame Login allein speichert noch keine Quiz-Ergebnisse und ersetzt keine Berechtigungsprüfung auf dem Server.
 
 ## Einfachste Konfiguration
 
@@ -86,3 +94,5 @@ Wie in den benachbarten Komponenten sind Ressourcenpfade auf die einbettende HTM
 ## Prüfungen
 
 `node --test tests/config.test.mjs` prüft Konfigurationsformen, verschachtelte Einträge, ungültige Abhängigkeiten, Größen und zyklische Ordner. `http://localhost:8765/tests/browser.html` prüft mit dem echten Framework verzögertes Starten, Zustandserhalt, Wiederholen nach Ladefehlern, Aufräumen bei laufenden Starts und Neustart. Ein absichtlich ausgelöster Ladefehler gehört zu diesem Test.
+
+`http://localhost:8765/tests/user.html` prüft den gemeinsamen Sitzungsinhaber, das Weiterreichen von Ereignissen, den dauerhaften Login-Bereich, Ordner-Apps und den lokalen Google-Provider ohne echte Anmeldung.

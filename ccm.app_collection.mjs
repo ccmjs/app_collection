@@ -8,6 +8,9 @@ export const component = {
     description: "Alles an einem Ort.",
     columns: 4,
     ignore: [],
+    // Optional ["ccm.instance", "./libs/user/ccm.user.mjs", { ... }].
+    // Descendant user instances share this session through their parent chain.
+    user: null,
     labels: { back: "Zurück", home: "Übersicht", loading: "Wird geladen …", retry: "Erneut versuchen",
       error: "Die App konnte nicht geladen werden.", empty: "Hier sind noch keine Apps eingerichtet.", folder: "Ordner" },
   },
@@ -136,7 +139,16 @@ export const component = {
       nav.append(backButton, homeButton);
       const heading = node("h1", "ac-heading"); heading.tabIndex = -1;
       const content = node("div", "ac-content");
-      root.append(nav, heading, content); this.element.append(root);
+      const header = node("header", "ac-header");
+      header.append(nav);
+      if (this.user) {
+        const account = node("div", "ac-user");
+        account.append(this.user.host);
+        header.append(account);
+      }
+      root.append(header, heading, content); this.element.append(root);
+      // Attach the host before start(): autoLogin may open a modal and await sign-in.
+      if (this.user) await this.user.start();
       ui = { heading, content, back: backButton, home: homeButton };
       show("home", this.title, view => {
         if (this.description) view.append(node("p", "ac-description", this.description));
