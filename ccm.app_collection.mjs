@@ -1,18 +1,25 @@
-/** A home screen for ccmjs apps, folders and widgets. @license MIT */
+/**
+ * A home screen for ccmjs apps, folders and widgets.
+ *
+ * @author André Kless <andre.kless@web.de>
+ * @copyright 2026 André Kless
+ * @license MIT
+ * @version 1.0.0
+ */
 export const component = {
   name: "app_collection",
-  ccm: "././libs/framework/ccm.js",
+  ccm: "././libs/framework/ccm-28.0.0.min.js",
   config: {
     css: ["ccm.load", "././resources/styles.css"],
-    title: "Meine Apps",
-    description: "Alles an einem Ort.",
+    title: "My Apps",
+    description: "Everything in one place.",
     columns: 4,
     ignore: [],
-    // Optional ["ccm.instance", "./libs/user/ccm.user.mjs", { ... }].
+    // Optional ["ccm.instance", "./libs/user/ccm.user-1.0.0.min.mjs", { ... }].
     // Descendant user instances share this session through their parent chain.
     user: null,
-    labels: { back: "Zurück", home: "Übersicht", loading: "Wird geladen …", retry: "Erneut versuchen",
-      error: "Die App konnte nicht geladen werden.", empty: "Hier sind noch keine Apps eingerichtet.", folder: "Ordner" },
+    labels: { back: "Back", home: "Overview", loading: "Loading …", retry: "Try again",
+      error: "The app could not be loaded.", empty: "No apps have been added yet.", folder: "Folder" },
   },
   Instance: function () {
     let views = new Map(), children = new Set(), pending = new Set(), history = [], current, ui;
@@ -174,7 +181,7 @@ export function normalize(ignore) {
       if (!item || typeof item !== "object") throw new TypeError("Invalid collection item.");
       const type = item.type || (item.items ? "folder" : "app");
       if (!["app", "folder", "widget"].includes(type)) throw new TypeError(`Unknown item type: ${type}`);
-      const title = item.title || `${type === "folder" ? "Ordner" : "App"} ${++count}`;
+      const title = item.title || `${type === "folder" ? "Folder" : "App"} ${++count}`;
       if (type === "folder") return { ...item, type, title, items: items(item.items, depth + 1) };
       if (!Array.isArray(item.app) || item.app[0] !== "ccm.start" || !item.app[1])
         throw new TypeError(`${title}: app must be a ccm.start dependency.`);

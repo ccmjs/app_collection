@@ -1,61 +1,69 @@
 # App Collection
 
-Eine ccmjs-Komponente, die Apps als Kacheln, in Sektionen und Ordnern oder als eingebettete Widgets zusammenfasst. Geeignet für Kursportale und Unterstützungsangebote.
+A ccmjs component that brings apps together as tiles, sections, folders and embedded widgets. Suitable for course portals and student support resources.
 
-## Ausprobieren
+## Getting started
 
-Im Repository `python3 -m http.server 8765` starten und `http://localhost:8765` öffnen. Die englische Demo verwendet lokale Kopien von Slidecast, PDF-Viewer und Quiz. Sie zeigt ein Quiz als Widget, PDF-Dokumente, verschachtelte Ordner und einen Slidecast mit Audio und eingebettetem Quiz.
+Run `python3 -m http.server 8765` in the repository and open `http://localhost:8765`. The English demo uses externally loaded Slidecast and PDF Viewer apps. It includes a PDF widget, documents, nested folders and a slidecast with audio.
 
-Die Beispielkonfiguration liegt in `resources/configs.mjs`. Unter `libs` liegen die Komponenten, ihre Ressourcen und Lizenzen, einschließlich User, Google-Login, ccm-ui und PDF.js. Es gibt keine zusätzliche Demo-Komponente mehr. Die Lerninhalte funktionieren ohne Server; für die tatsächliche Anmeldung wird ein ccm-Server benötigt.
+The demo configuration is exported as `demo` from `resources/configs.mjs`. The `libs` directory contains only fixed, minified releases with source maps and licenses:
 
-## Gemeinsamer Login
+- ccm-ui **1.0.0**
+- CCM Framework **28.0.0**
+- User **1.0.0**
 
-Die optionale Eigenschaft `user` enthält eine `ccm.instance`-Abhängigkeit zur User-Komponente. App Collection hängt deren Host oben rechts ein und ruft danach `start()` auf. Der Bereich bleibt auch in Ordnern und geöffneten Apps sichtbar. `autoLogin: true` wartet vor dem Anzeigen der Inhalte auf die Anmeldung. Ohne `user` oder mit `user: null` entfällt der Bereich.
+These files are unchanged copies of the releases bundled in the User and Quiz repositories. User loads its resources from CDN URLs pinned to **v1.0.0**. When updating a dependency, replace its versioned file, source map, license and references together.
 
-Die Demo konfiguriert die Server-URL und den Realm zentral in `authentication` in `resources/configs.mjs`. Standard ist `http://localhost:8080`, Realm `ccm`. Ihre Quiz-Apps besitzen jeweils eine eigene User-Instanz mit denselben Werten. Die User-Komponente findet über die Elternkette den gemeinsamen Sitzungsinhaber: Login, Logout, Status und Token werden an ihn delegiert; zusätzliche Login-Oberflächen bleiben leer. Das gilt auch für das Quiz innerhalb des Slidecasts. Apps können den Kontext außerdem über `this.ccm.helper.findInAncestors(this, "user")` lesen. Den Host der übergeordneten User-Instanz nicht in eine Unter-App verschieben.
+The demo loads Slidecast **1.0.0**, PDF Viewer **1.0.0**, Google Login **1.0.1** and their resources externally. Quiz is not included in the demo until a published release is available. The demo, including the sign-in interface, requires an internet connection. Actual authentication also requires a ccm-server. There is no additional demo component.
 
-Google-Login wird lokal aus `libs/google_login` geladen. Das Popup nutzt weiterhin die in der Komponente konfigurierte gehostete Callback-Seite. Für einen eigenen Einsatz müssen Google-Client-ID, erlaubte Callback-Origin und die Konfiguration des ccm-Servers zusammenpassen; eine lokale Callback-Kopie liegt unter `libs/google_login/auth.html`. Der gemeinsame Login allein speichert noch keine Quiz-Ergebnisse und ersetzt keine Berechtigungsprüfung auf dem Server.
+## Shared authentication
 
-## Einfachste Konfiguration
+The optional `user` property accepts a `ccm.instance` dependency for the User component. App Collection mounts its host in the top-right corner before calling `start()`. The account area remains visible inside folders and open apps. With `autoLogin: true`, the collection waits for sign-in before displaying its content. Omit `user` or set it to `null` to hide the account area.
+
+The demo configures the server URL and realm centrally in `authentication` in `resources/configs.mjs`. Defaults are `http://localhost:8080` and realm `ccm`. Child apps can configure their own User instances with the same values. The User component follows the parent chain to find the shared session owner: sign-in, sign-out, status and token access are delegated to that owner, while child sign-in interfaces remain empty. This also works for deeply nested apps. Apps can access the context using `this.ccm.helper.findInAncestors(this, "user")`. Do not move the parent User instance's host into a child app.
+
+Google Login is loaded from the fixed **1.0.1** CDN release. Its popup uses the hosted callback page configured in the component. For your own deployment, the Google client ID, allowed callback origin and ccm-server configuration must match. Shared authentication does not automatically save app results or replace server-side authorization.
+
+## Minimal configuration
 
 ```js
 await ccm.start('./ccm.app_collection.mjs', {
-  title: 'Meine Lehrveranstaltung',
+  title: 'My course',
   ignore: [
-    ['ccm.start', './apps/ccm.slidecast.mjs', { /* Slidecast-Konfiguration */ }],
-    ['ccm.start', './apps/ccm.quiz.mjs', { /* Quiz-Konfiguration */ }],
+    ['ccm.start', './apps/ccm.slidecast.mjs', { /* Slidecast configuration */ }],
+    ['ccm.start', './apps/ccm.pdf_viewer.mjs', { /* PDF Viewer configuration */ }],
   ],
 }, document.querySelector('main'));
 ```
 
-Das ccm-Framework muss zuvor geladen sein, etwa mit `<script src="./libs/framework/ccm.js"></script>`. Das mitgelieferte Framework ist ein lokaler Snapshot aus dem benachbarten `framework`-Repository; seine MIT-Lizenz liegt daneben.
+Load the framework first, for example with `<script src="./libs/framework/ccm-28.0.0.min.js"></script>`. The bundled framework is release **28.0.0**; its MIT license is included alongside it. The example app paths refer to components provided by your own deployment.
 
-## Sektionen, Ordner und Widgets
+## Sections, folders and widgets
 
 ```js
 const config = {
-  title: 'Mein Kurs',
-  description: 'Materialien und Termine',
+  title: 'My course',
+  description: 'Materials and schedule',
   columns: 4,
   ignore: {
     sections: [
       {
-        title: 'Kapitel 1',
-        description: 'Grundlagen',
+        title: 'Chapter 1',
+        description: 'Fundamentals',
         items: [
           {
-            title: 'Vorlesung', icon: '🎬', description: 'Folien und Audio',
+            title: 'Lecture', icon: '🎬', description: 'Slides and audio',
             app: ['ccm.start', './apps/ccm.slidecast.mjs', { /* … */ }],
           },
           {
-            title: 'Übungen', icon: './icons/exercises.svg',
+            title: 'Reading', icon: './icons/reading.svg',
             items: [
-              { title: 'Quiz 1', app: ['ccm.start', './apps/ccm.quiz.mjs', { /* … */ }] },
-              { title: 'Zusatzmaterial', items: [ /* weitere Apps oder Ordner */ ] },
+              { title: 'Handbook', app: ['ccm.start', './apps/ccm.pdf_viewer.mjs', { /* … */ }] },
+              { title: 'Additional materials', items: [ /* more apps or folders */ ] },
             ],
           },
           {
-            type: 'widget', title: 'Stundenplan', width: 2, height: 2,
+            type: 'widget', title: 'Schedule', width: 2, height: 2,
             app: ['ccm.start', './apps/ccm.calendar.mjs', { /* … */ }],
           },
         ],
@@ -65,34 +73,30 @@ const config = {
 };
 ```
 
-App- und Ordnerobjekte können auch direkt im `ignore`-Array stehen. Die Existenz von `items` kennzeichnet einen Ordner; `type: 'folder'` ist optional. Ordner können bis zu 20 Ebenen tief verschachtelt sein. Ohne Titel erhalten Einträge einen generierten Namen. `icon` akzeptiert Text/Emoji oder eine Bild-URL mit `https://`, `http://`, `./` oder `/` am Anfang. Titel und Beschreibungen werden als Text ausgegeben.
+App and folder objects can also appear directly in the `ignore` array. An `items` property identifies a folder; `type: 'folder'` is optional. Folders can be nested up to 20 levels deep. Entries without titles receive generated names such as `App 1` or `Folder 1`. `icon` accepts text, emoji or an image URL starting with `https://`, `http://`, `./` or `/`. Titles and descriptions are rendered as plain text.
 
-| Option | Bedeutung | Standard |
+| Option | Description | Default |
 | --- | --- | --- |
-| `columns` | Maximale Spaltenzahl (1–12) | `4` |
-| `type` | `app`, `folder` oder `widget` | automatisch |
-| `width` | Widget-Breite in Grid-Zellen (1–12) | `2` |
-| `height` | Widget-Höhe in Grid-Zellen (1–12) | `2` |
-| `labels` | Überschreibbare UI-Texte, siehe Komponente | Deutsch |
-| `css` | ccm.load-Abhängigkeit für das Stylesheet | `resources/styles.css` |
+| `title` | Collection title | `My Apps` |
+| `description` | Introductory text | `Everything in one place.` |
+| `columns` | Maximum number of columns (1–12) | `4` |
+| `type` | `app`, `folder` or `widget` | inferred |
+| `width` | Widget width in grid cells (1–12) | `2` |
+| `height` | Widget height in grid cells (1–12) | `2` |
+| `labels` | Customizable interface text; see the component | English |
+| `css` | ccm.load dependency for the stylesheet | `resources/styles.css` |
 
-Die Reihenfolge im Array bestimmt die Platzierung. Das Grid reduziert sich bei schmalem Container auf zwei bzw. eine Spalte; Widgets passen ihre Breite entsprechend an. Zeilen sind mindestens 156 px hoch und wachsen mit ihrem Inhalt. Breite und Höhe bezeichnen Zellspannen, keine festen Pixelmaße. Freie Koordinaten, Drag-and-drop und ein visueller Konfigurationseditor sind noch nicht enthalten.
+Array order determines placement. The grid switches to two or one column in narrow containers, and widgets adjust their width accordingly. Rows are at least 156 px tall and grow with their content. Width and height specify cell spans, not fixed pixel dimensions. Explicit coordinates, drag-and-drop and a visual configuration editor are not included.
 
-## Verhalten und Lebenszyklus
+## Behavior and lifecycle
 
-- `ignore` verhindert, dass ccm die Kind-Apps vorzeitig auflöst.
-- Kachel-Apps starten beim ersten Öffnen. Widgets starten beim ersten Anzeigen ihres Grids, auch innerhalb eines Ordners.
-- Zurück und Übersicht wechseln zwischen den Ansichten. Bereits geöffnete Instanzen und Eingaben bleiben während der Sitzung erhalten. Es gibt keine automatische Speicherung über einen Seiten-Reload hinweg.
-- Verdeckte Ansichten bleiben im DOM; ihre Apps sind weiterhin aktiv. Audio, Timer und Hintergrundarbeit werden nicht automatisch pausiert. Dafür benötigt die jeweilige App eine eigene Steuerung.
-- Ladefehler betreffen nur die jeweilige App. Ein Wiederholen-Button ermöglicht einen neuen Versuch.
-- `await instance.destroy()` wartet auf laufende Ladevorgänge, ruft vorhandene `destroy()`-Methoden der Kinder auf und entfernt deren Hosts. Apps müssen eigene Listener/Timer in ihrem `destroy()` freigeben. Ein nie endender Kind-Start kann auch das Aufräumen verzögern.
-- `await instance.start()` baut die Collection neu auf und verwirft dabei bisherige Kind-Instanzen. Lebenszyklusaufrufe nacheinander abwarten.
-- Tastaturbedienung erfolgt über native Buttons; beim Zurückgehen kehrt der Fokus auf die auslösende Kachel zurück.
+- `ignore` prevents ccm from resolving child apps prematurely.
+- Tile apps start when first opened. Widgets start when their grid is first displayed, including inside folders.
+- Back and Overview switch between views. Open instances and input values are preserved during the session. They are not automatically saved across page reloads.
+- Hidden views remain in the DOM, and their apps remain active. Audio, timers and background work are not automatically paused; each app needs its own controls for this.
+- Loading errors affect only the relevant app. A Try again button allows another attempt.
+- `await instance.destroy()` waits for pending loads, calls available child `destroy()` methods and removes their hosts. Apps must release their own listeners and timers in `destroy()`. A child start that never settles can delay cleanup.
+- `await instance.start()` rebuilds the collection and discards existing child instances. Await lifecycle calls sequentially.
+- Native buttons provide keyboard navigation. Going back restores focus to the tile that opened the view.
 
-Wie in den benachbarten Komponenten sind Ressourcenpfade auf die einbettende HTML-Seite bezogen. Bei Einbettung in andere Verzeichnisse insbesondere `css`, Framework-URL und Pfade der Kind-Apps passend konfigurieren. Zusätzliche Mount-Argumente einer `ccm.start`-Abhängigkeit werden durch den Mount innerhalb der Collection ersetzt.
-
-## Prüfungen
-
-`node --test tests/config.test.mjs` prüft Konfigurationsformen, verschachtelte Einträge, ungültige Abhängigkeiten, Größen und zyklische Ordner. `http://localhost:8765/tests/browser.html` prüft mit dem echten Framework verzögertes Starten, Zustandserhalt, Wiederholen nach Ladefehlern, Aufräumen bei laufenden Starts und Neustart. Ein absichtlich ausgelöster Ladefehler gehört zu diesem Test.
-
-`http://localhost:8765/tests/user.html` prüft den gemeinsamen Sitzungsinhaber, das Weiterreichen von Ereignissen, den dauerhaften Login-Bereich, Ordner-Apps und den lokalen Google-Provider ohne echte Anmeldung.
+Component resource paths are relative to the embedding HTML page. When embedding from another directory, adjust `css`, the framework URL and child app paths accordingly. Additional mount arguments in a `ccm.start` dependency are replaced by the mount point inside the collection.
