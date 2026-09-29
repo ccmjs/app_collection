@@ -94,6 +94,8 @@ export class LayoutEditor {
     this.status.textContent = this.app.labels.saving;
     try {
       await this.app.onlayoutchange?.({ app: this.app, state: layout, layout, user });
+      if (version !== this.version || !this.allowed() || this.owner !== this.identity()) return;
+      await this.app.emit('finish', { state: layout, user });
       if (version !== this.version) return;
       if (!this.allowed() || this.owner !== this.identity()) { this.abort(); return; }
       this.app.commitLayoutState();

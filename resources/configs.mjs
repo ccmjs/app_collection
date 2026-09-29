@@ -48,6 +48,11 @@ const slidecast = {
 
 export const demo = {
   editable: true,
+  extensions: [load('./extensions.mjs#store')],
+  layouts: {
+    key: 'web_technologies',
+    store: ['ccm.store', { name: 'app_collection_layouts', url: authentication.url }],
+  },
   ccm,
   css: load('./styles.css'),
   title: 'My Campus',

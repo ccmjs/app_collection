@@ -29,6 +29,8 @@ export const component = {
     /** Optional async ({ app, user }) => personal state or null, called once per user per instance. */
     onlayoutload: null,
     state: null,
+    /** Functions or ccm.load dependencies, called sequentially with { app, type }. */
+    extensions: [],
     labels: { back: "Back", home: "Overview", loading: "Loading …", retry: "Try again",
       error: "The app could not be loaded.", empty: "No apps have been added yet.", folder: "Folder",
       edit: "Edit layout", done: "Done", cancelEdit: "Cancel", move: "Move", moveTo: "Move to section",
@@ -41,6 +43,12 @@ export const component = {
     let views = new Map(), children = new Set(), pending = new Set(), history = [], current, ui;
     let generation = 0, editor, sections = [];
     const sessions = new Map();
+    this.emit = async (type, details = {}) => {
+      const event = { ...details, app: this, type };
+      for (const extension of [].concat(this.extensions || [])) if (extension) await extension(event);
+    };
+    this.init = async () => this.emit('init');
+    this.ready = async () => this.emit('ready');
     let owner, userListener, queue = Promise.resolve(), rendering = false, destroyed = false;
     const identity = () => {
       const user = this.user?.isLoggedIn?.() ? this.user.getState() : null;
@@ -217,12 +225,17 @@ export const component = {
         owner = nextOwner;
         if (sessions.has(owner)) this.state = this.ccm.helper.clone(sessions.get(owner));
       }
-      if (owner !== 'guest' && !sessions.has(owner) && this.onlayoutload) {
+      if (owner !== 'guest' && !sessions.has(owner)) {
         content.textContent = this.labels.loading;
         try {
-          const loaded = await this.onlayoutload({ app: this, user: this.ccm.helper.clone(this.user.getState()) });
+          const user = this.ccm.helper.clone(this.user.getState());
+          if (this.onlayoutload) {
+            const loaded = await this.onlayoutload({ app: this, user });
+            if (destroyed || identity() !== owner) return;
+            this.state = loaded;
+          }
+          await this.emit('restore', { user });
           if (destroyed || identity() !== owner) return;
-          this.state = loaded;
         } catch (error) {
           if (destroyed || identity() !== owner) return;
           content.replaceChildren(node('p', '', this.labels.loadError), button(this.labels.retry, () => this.start().catch(console.error)));
@@ -246,6 +259,7 @@ export const component = {
           view.append(area); grid(section.items, area);
         }
       });
+      await this.emit('start');
     };
     this.start = () => {
       destroyed = false;

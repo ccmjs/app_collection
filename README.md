@@ -117,26 +117,36 @@ Add stable, unique `id` values to sections, folders and apps in `ignore`. Keep I
 
 App, folder and widget names can be changed in edit mode, as well as section names. Changes update `state` immediately. Done confirms the state; Cancel restores the state from the beginning of editing. `getLayout()` returns an independent copy of the personal state. A same-user `start()` reuses it. Switching accounts loads that account's state and recreates child apps; logging out returns to the teacher template. Unconfirmed edits are discarded on an account switch.
 
-Confirmed states are cached separately per server URL, realm and user key in the running collection. A fresh instance or page reload needs a persistence integration. Configure `onlayoutload` and `onlayoutchange` to load and save personal states in your application:
+Confirmed states are cached separately per server URL, realm and user key in the running collection. The demo also persists them on the authentication server through a `ccm.store`.
+
+### Persistence extension
+
+As in Quiz, `extensions` contains functions receiving `{ app, type }`. The component awaits them in configuration order. It emits `init`, `ready`, `restore`, `start` and `finish`. `restore` runs on the first visit by each signed-in account within an instance; `finish` runs when the user confirms edits with **Done**.
+
+The demo loads `store` from `resources/extensions.mjs`:
 
 ```js
 {
   editable: true,
   user: ['ccm.instance', './libs/user/ccm.user-1.0.0.min.mjs', { /* authentication */ }],
-  onlayoutload: async ({ app, user }) => {
-    // Return the saved personal state for this course and user, or null for the template.
-    return null;
-  },
-  onlayoutchange: async ({ app, state, user }) => {
-    // Save state using a stable course key plus user.realm and user.key.
-    // Throw on failure to keep the editor open for retry or cancellation.
+  extensions: [['ccm.load', './resources/extensions.mjs#store']],
+  layouts: {
+    key: 'web_technologies',
+    store: ['ccm.store', {
+      name: 'app_collection_layouts',
+      url: 'http://localhost:8080',
+    }],
   },
 }
 ```
 
-`onlayoutload` runs on the first visit by each signed-in account within an instance. A loading failure shows a retry action and does not silently replace the personal state with defaults. The optional initial `state` belongs to the account active on first start. Restore saved layouts through `state`, not `ignore`. For compatibility, the save callback also receives `layout` as an alias of the state snapshot.
+Use a stable `layouts.key` for each course collection (`app.key` is the fallback). Each dataset is addressed by `[courseKey, user.realm, user.key]` and contains `app`, `realm`, `user` and the personal `state`. Only names and references are saved; app dependencies remain in the teacher's `ignore` template. The datastore obtains authentication through the shared User instance. The demo uses the same server URL for authentication and storage; that ccm-server must be running and configured with persistent storage for layouts to survive a server restart.
 
-The demo currently uses the per-instance cache, without permanent server storage. A server-backed integration must authorize writes and identify both the course and the account. If an account changes during an asynchronous load or save, the response cannot change the new account's active layout. A persistence request already sent still belongs to the user captured when saving. UI labels, including editor labels, are configurable through `labels`.
+The extension loads the saved state on `restore` and writes it on `finish`. After a successful write it emits `stored`. New datasets receive owner-only read, write and delete permissions; updates preserve existing access rules. Reloading the page restores the signed-in user's saved layout. **Cancel** and signing out discard unconfirmed edits without saving them. A loading failure displays a retry action; a saving failure keeps the editor open for retry or cancellation.
+
+The optional initial `state` belongs to the account active on first start. Restore saved layouts through `state`, not `ignore`. UI labels, including editor labels, are configurable through `labels`.
+
+For custom integrations, `onlayoutload({ app, user })` and `onlayoutchange({ app, state, user })` remain available. The load callback returns a personal state or `null` for the template; the save callback also receives `layout` as an alias of `state`. These callbacks run before the corresponding `restore` and `finish` extensions. Choose one persistence integration to avoid duplicate writes.
 
 ## Behavior and lifecycle
 
