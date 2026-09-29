@@ -54,7 +54,7 @@ export const demo = {
     store: ['ccm.store', { name: 'app_collection_layouts', url: authentication.url }],
   },
   ccm,
-  css: load('./styles.css'),
+  css: load('./styles-hbrs.css'),
   title: 'My Campus',
   description: 'Web technologies · Course materials and lectures',
   labels: {

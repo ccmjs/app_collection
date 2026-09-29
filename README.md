@@ -88,6 +88,16 @@ App and folder objects can also appear directly in the `ignore` array. An `items
 
 Array order determines placement. The grid switches to two or one column in narrow containers, and widgets adjust their width accordingly. Rows are at least 156 px tall and grow with their content. Width and height specify cell spans, not fixed pixel dimensions. Explicit coordinates and creating or deleting apps in the interface are not included.
 
+## Alternative H-BRS theme
+
+Use `resources/styles-hbrs.css` for a white and blue theme inspired by the Hochschule Bonn-Rhein-Sieg logo. It provides quieter cards, cyan accents, dark blue action buttons, clear keyboard focus and matching editor controls. The standard theme remains the default.
+
+```js
+css: ['ccm.load', './resources/styles-hbrs.css'],
+```
+
+Load the alternative stylesheet on its own: it imports `styles.css` automatically. Paths in the configuration are relative to the embedding page. The theme uses system fonts and requires no additional libraries or image assets. It styles the collection shell; embedded apps and the User component retain their own styles. This is an optional visual theme, not an official corporate design template.
+
 ## Editing the layout
 
 Set `editable: true` and configure a `user` instance to enable editing for signed-in users. The demo enables this option. Signed-out users and collections without a User instance cannot edit.
