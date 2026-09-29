@@ -86,7 +86,57 @@ App and folder objects can also appear directly in the `ignore` array. An `items
 | `labels` | Customizable interface text; see the component | English |
 | `css` | ccm.load dependency for the stylesheet | `resources/styles.css` |
 
-Array order determines placement. The grid switches to two or one column in narrow containers, and widgets adjust their width accordingly. Rows are at least 156 px tall and grow with their content. Width and height specify cell spans, not fixed pixel dimensions. Explicit coordinates, drag-and-drop and a visual configuration editor are not included.
+Array order determines placement. The grid switches to two or one column in narrow containers, and widgets adjust their width accordingly. Rows are at least 156 px tall and grow with their content. Width and height specify cell spans, not fixed pixel dimensions. Explicit coordinates and creating or deleting apps in the interface are not included.
+
+## Editing the layout
+
+Set `editable: true` and configure a `user` instance to enable editing for signed-in users. The demo enables this option. Signed-out users and collections without a User instance cannot edit.
+
+Choose **Edit layout** to rename sections and rearrange app tiles, folders and widgets. Drag the dedicated handle with a mouse, pen or touch contact. Pointer Events and pointer capture provide a shared interaction model; touch scrolling remains available outside the handles. The page scrolls near its edges while dragging. Drop before an item or at the end of a grid. Items can move between sections on the current view. Inside a folder, items can be reordered; moving into or out of folders is not currently supported.
+
+For keyboard use, focus a handle and press an arrow key to move one position backward or forward. The adjacent menu moves an item to another section. **Done** applies changes, while **Cancel** restores the layout from the start of editing. Signing out or switching accounts cancels unfinished edits. Child app instances are preserved when their tiles move.
+
+### Teacher template and personal state
+
+`ignore` is the teacher's shared template and is never modified by the editor. `instance.state` contains the active user's names and ordering, separate from app dependencies and configuration:
+
+```js
+{
+  sections: [{
+    id: 'chapter-1',
+    title: 'My revision notes',
+    items: [
+      { id: 'slides', title: 'Read before class' },
+      { id: 'lecture', title: 'Lecture recording' },
+    ],
+  }],
+}
+```
+
+Add stable, unique `id` values to sections, folders and apps in `ignore`. Keep IDs unchanged when updating course materials. The demo includes explicit IDs. Without IDs, the component generates IDs from the original position; these are suitable only while the template structure stays unchanged. Personal state can reference known materials and override their titles, but cannot replace their dependencies. New materials are appended in their original section or folder; references to removed materials are ignored.
+
+App, folder and widget names can be changed in edit mode, as well as section names. Changes update `state` immediately. Done confirms the state; Cancel restores the state from the beginning of editing. `getLayout()` returns an independent copy of the personal state. A same-user `start()` reuses it. Switching accounts loads that account's state and recreates child apps; logging out returns to the teacher template. Unconfirmed edits are discarded on an account switch.
+
+Confirmed states are cached separately per server URL, realm and user key in the running collection. A fresh instance or page reload needs a persistence integration. Configure `onlayoutload` and `onlayoutchange` to load and save personal states in your application:
+
+```js
+{
+  editable: true,
+  user: ['ccm.instance', './libs/user/ccm.user-1.0.0.min.mjs', { /* authentication */ }],
+  onlayoutload: async ({ app, user }) => {
+    // Return the saved personal state for this course and user, or null for the template.
+    return null;
+  },
+  onlayoutchange: async ({ app, state, user }) => {
+    // Save state using a stable course key plus user.realm and user.key.
+    // Throw on failure to keep the editor open for retry or cancellation.
+  },
+}
+```
+
+`onlayoutload` runs on the first visit by each signed-in account within an instance. A loading failure shows a retry action and does not silently replace the personal state with defaults. The optional initial `state` belongs to the account active on first start. Restore saved layouts through `state`, not `ignore`. For compatibility, the save callback also receives `layout` as an alias of the state snapshot.
+
+The demo currently uses the per-instance cache, without permanent server storage. A server-backed integration must authorize writes and identify both the course and the account. If an account changes during an asynchronous load or save, the response cannot change the new account's active layout. A persistence request already sent still belongs to the user captured when saving. UI labels, including editor labels, are configurable through `labels`.
 
 ## Behavior and lifecycle
 
@@ -96,7 +146,7 @@ Array order determines placement. The grid switches to two or one column in narr
 - Hidden views remain in the DOM, and their apps remain active. Audio, timers and background work are not automatically paused; each app needs its own controls for this.
 - Loading errors affect only the relevant app. A Try again button allows another attempt.
 - `await instance.destroy()` waits for pending loads, calls available child `destroy()` methods and removes their hosts. Apps must release their own listeners and timers in `destroy()`. A child start that never settles can delay cleanup.
-- `await instance.start()` rebuilds the collection and discards existing child instances. Await lifecycle calls sequentially.
+- `await instance.start()` rebuilds the collection from the current state and discards existing child instances. Await lifecycle calls sequentially.
 - Native buttons provide keyboard navigation. Going back restores focus to the tile that opened the view.
 
 Component resource paths are relative to the embedding HTML page. When embedding from another directory, adjust `css`, the framework URL and child app paths accordingly. Additional mount arguments in a `ccm.start` dependency are replaced by the mount point inside the collection.

@@ -47,6 +47,7 @@ const slidecast = {
 };
 
 export const demo = {
+  editable: true,
   ccm,
   css: load('./styles.css'),
   title: 'My Campus',
@@ -71,20 +72,20 @@ export const demo = {
     }]],
   }],
   ignore: { sections: [
-    { title: 'Start here', description: 'Everything you need for your first session.', items: [
-      { type: 'widget', title: 'Document preview', width: 2, height: 2, app: pdfApp() },
-      { title: 'Course handbook', icon: '📖', description: 'Read, search visually and download', app: pdfApp() },
-      { title: 'Study resources', icon: '📁', items: [
-        { title: 'Reference document', icon: '📄', app: pdfApp() },
-        { title: 'Further reading', icon: '📚', items: [
-          { title: 'Web fundamentals', icon: '📄', app: pdfApp() },
+    { id: 'start', title: 'Start here', description: 'Everything you need for your first session.', items: [
+      { type: 'widget', id: 'preview', title: 'Document preview', width: 2, height: 2, app: pdfApp() },
+      { id: 'handbook', title: 'Course handbook', icon: '📖', description: 'Read, search visually and download', app: pdfApp() },
+      { id: 'resources', title: 'Study resources', icon: '📁', items: [
+        { id: 'reference', title: 'Reference document', icon: '📄', app: pdfApp() },
+        { id: 'reading', title: 'Further reading', icon: '📚', items: [
+          { id: 'fundamentals', title: 'Web fundamentals', icon: '📄', app: pdfApp() },
         ] },
       ] },
     ] },
-    { title: 'Chapter 1 · Web fundamentals', description: 'Follow the lecture and explore the accompanying documents.', items: [
-      { title: 'Lecture', icon: '🎬', description: 'Slides and audio',
+    { id: 'chapter-1', title: 'Chapter 1 · Web fundamentals', description: 'Follow the lecture and explore the accompanying documents.', items: [
+      { id: 'lecture', title: 'Lecture', icon: '🎬', description: 'Slides and audio',
         app: ['ccm.start', url('https://cdn.jsdelivr.net/gh/ccmjs/slidecast@v1.0.0/ccm.slidecast-1.0.0.min.mjs'), slidecast] },
-      { title: 'Lecture slides', icon: '📑', description: 'Open the PDF directly', app: pdfApp() },
+      { id: 'slides', title: 'Lecture slides', icon: '📑', description: 'Open the PDF directly', app: pdfApp() },
     ] },
   ] },
 };

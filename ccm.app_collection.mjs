@@ -6,6 +6,10 @@
  * @license MIT
  * @version 1.0.0
  */
+
+import { LayoutEditor } from "./resources/editor.mjs";
+import { identify, capture, resolve } from "./resources/state.mjs";
+
 export const component = {
   name: "app_collection",
   ccm: "././libs/framework/ccm-28.0.0.min.js",
@@ -18,12 +22,44 @@ export const component = {
     // Optional ["ccm.instance", "./libs/user/ccm.user-1.0.0.min.mjs", { ... }].
     // Descendant user instances share this session through their parent chain.
     user: null,
+    /** Allow signed-in users to edit the layout. */
+    editable: false,
+    /** Optional async ({ app, state, user }) persistence callback, called on Done. */
+    onlayoutchange: null,
+    /** Optional async ({ app, user }) => personal state or null, called once per user per instance. */
+    onlayoutload: null,
+    state: null,
     labels: { back: "Back", home: "Overview", loading: "Loading …", retry: "Try again",
-      error: "The app could not be loaded.", empty: "No apps have been added yet.", folder: "Folder" },
+      error: "The app could not be loaded.", empty: "No apps have been added yet.", folder: "Folder",
+      edit: "Edit layout", done: "Done", cancelEdit: "Cancel", move: "Move", moveTo: "Move to section",
+      sectionName: "Section name", itemName: "Item name", loadError: "Your layout could not be loaded.", moved: "Moved:", saving: "Saving layout …", saved: "Layout updated.",
+      saveError: "The layout could not be saved. Try Done again or cancel your changes.",
+      editHelp: "Drag a handle to move an item, or use its arrow keys. Use the menu to move between sections.",
+    },
   },
   Instance: function () {
     let views = new Map(), children = new Set(), pending = new Set(), history = [], current, ui;
-    let generation = 0;
+    let generation = 0, editor, sections = [];
+    const sessions = new Map();
+    let owner, userListener, queue = Promise.resolve(), rendering = false, destroyed = false;
+    const identity = () => {
+      const user = this.user?.isLoggedIn?.() ? this.user.getState() : null;
+      return user ? JSON.stringify([this.user.url || '', user.realm, user.key]) : 'guest';
+    };
+    this.getLayout = () => this.ccm.helper.clone(this.state);
+    this.updateLayoutState = () => { this.state = capture(sections); };
+    this.commitLayoutState = () => { this.updateLayoutState(); sessions.set(owner, this.getLayout()); };
+    const bindUser = () => {
+      if (!this.user || userListener) return;
+      userListener = async () => {
+        if (destroyed || owner === identity()) return;
+        editor?.abort();
+        // Hide outgoing content immediately, even if a child is still loading.
+        if (ui?.content) { ui.content.hidden = true; ui.content.inert = true; }
+        if (!rendering) await this.start();
+      };
+      this.user.extensions = [].concat(this.user.extensions || [], userListener);
+    };
     const node = (tag, className, text) => {
       const el = document.createElement(tag);
       if (className) el.className = className;
@@ -40,14 +76,22 @@ export const component = {
       try { await child.destroy?.(); }
       finally { child.host?.remove(); if (this.children) delete this.children[child.index]; }
     };
-    this.destroy = async () => {
+    const clearUI = async () => {
       generation++;
+      editor?.destroy(); editor = null;
       await Promise.allSettled([...pending]);
       const results = await Promise.allSettled([...children].map(release));
       children.clear(); views.clear(); history = []; current = null;
       this.element.replaceChildren();
       const failure = results.find(result => result.status === "rejected");
       if (failure) throw failure.reason;
+    };
+    this.destroy = async () => {
+      destroyed = true;
+      if (this.user && userListener)
+        this.user.extensions = [].concat(this.user.extensions || []).filter(fn => fn !== userListener);
+      userListener = null;
+      await clearUI();
     };
     const mount = (item, target) => {
       const token = generation;
@@ -95,7 +139,7 @@ export const component = {
         create(view);
       }
       view.hidden = false;
-      current = { view, title };
+      current = { view, title, key };
       ui.heading.textContent = title;
       ui.back.hidden = history.length === 0;
       ui.home.hidden = history.length === 0;
@@ -105,21 +149,29 @@ export const component = {
       if (!history.length) return;
       current.view.hidden = true;
       const previous = history.pop(); current = previous; previous.view.hidden = false;
-      ui.heading.textContent = previous.title;
+      ui.heading.textContent = typeof previous.key === "object" ? previous.key.title : previous.title;
       ui.back.hidden = ui.home.hidden = history.length === 0;
       previous.opener?.focus();
     };
     const grid = (items, target) => {
       const el = node("div", "ac-grid"); target.append(el);
-      if (!items.length) el.append(node("p", "ac-empty", this.labels.empty));
+      const empty = node("p", "ac-empty", this.labels.empty); empty.hidden = items.length > 0; el.append(empty);
+      editor.grid(items, el, target.closest(".ac-view"));
       for (const item of items) {
+        const wrapper = node("div", "ac-item");
+        if (item.type === "widget") {
+          wrapper.style.setProperty("--span", Math.min(item.width, this.columns));
+          wrapper.style.setProperty("--rows", item.height);
+        }
+        el.append(wrapper);
+        editor.entry(item, wrapper);
         if (item.type === "widget") {
           const card = node("section", "ac-widget");
           card.style.setProperty("--span", Math.min(item.width, this.columns));
           card.style.setProperty("--rows", item.height);
           card.setAttribute("aria-label", item.title);
           card.append(node("h3", "ac-widget-title", item.title));
-          const content = node("div", "ac-widget-content"); card.append(content); el.append(card);
+          const content = node("div", "ac-widget-content"); card.append(content); wrapper.append(card);
           mount(item, content);
         } else {
           const tile = button("", () => show(item, item.title, view => {
@@ -129,15 +181,18 @@ export const component = {
           tile.append(icon(item), node("span", "ac-tile-title", item.title));
           if (item.type === "folder") tile.append(node("span", "ac-caption", `${this.labels.folder} · ${item.items.length}`));
           else if (item.description) tile.append(node("span", "ac-caption", item.description));
-          el.append(tile);
+          wrapper.append(tile);
         }
       }
     };
-    this.start = async () => {
-      await this.destroy();
+    const render = async () => {
+      await clearUI();
+      if (destroyed) return;
+      // ccm replaces nested configuration objects; retain defaults for partial label overrides.
+      this.labels = { ...component.config.labels, ...this.labels };
       if (!Number.isInteger(this.columns) || this.columns < 1 || this.columns > 12)
         throw new TypeError("columns must be an integer from 1 to 12.");
-      const sections = normalize(this.ignore);
+      sections = [];
       const root = node("section", "app-collection");
       root.style.setProperty("--columns", this.columns);
       const nav = node("nav", "ac-nav"); nav.setAttribute("aria-label", this.labels.home);
@@ -156,16 +211,55 @@ export const component = {
       root.append(header, heading, content); this.element.append(root);
       // Attach the host before start(): autoLogin may open a modal and await sign-in.
       if (this.user) await this.user.start();
+      const nextOwner = identity();
+      if (owner !== nextOwner) {
+        this.state = owner === undefined ? this.state : null;
+        owner = nextOwner;
+        if (sessions.has(owner)) this.state = this.ccm.helper.clone(sessions.get(owner));
+      }
+      if (owner !== 'guest' && !sessions.has(owner) && this.onlayoutload) {
+        content.textContent = this.labels.loading;
+        try {
+          const loaded = await this.onlayoutload({ app: this, user: this.ccm.helper.clone(this.user.getState()) });
+          if (destroyed || identity() !== owner) return;
+          this.state = loaded;
+        } catch (error) {
+          if (destroyed || identity() !== owner) return;
+          content.replaceChildren(node('p', '', this.labels.loadError), button(this.labels.retry, () => this.start().catch(console.error)));
+          throw error;
+        }
+        content.replaceChildren();
+      }
+      if (destroyed || identity() !== owner) return;
+      sections = resolve(identify(normalize(this.ignore)), this.state);
+      this.updateLayoutState();
+      sessions.set(owner, this.getLayout());
+      const toolbar = node("div", "ac-editor-toolbar"); header.insertBefore(toolbar, header.lastChild === nav ? null : header.lastChild);
+      editor = new LayoutEditor(this, sections, root, toolbar);
       ui = { heading, content, back: backButton, home: homeButton };
       show("home", this.title, view => {
         if (this.description) view.append(node("p", "ac-description", this.description));
         for (const section of sections) {
           const area = node("section", "ac-section");
-          if (section.title) area.append(node("h2", "ac-section-title", section.title));
+          editor.section(section, area, sections.indexOf(section));
           if (section.description) area.append(node("p", "ac-description", section.description));
           view.append(area); grid(section.items, area);
         }
       });
+    };
+    this.start = () => {
+      destroyed = false;
+      bindUser();
+      const task = async () => {
+        if (destroyed) return;
+        rendering = true;
+        try {
+          do { await render(); } while (!destroyed && owner !== identity());
+        } finally { rendering = false; }
+      };
+      const result = queue.then(task, task);
+      queue = result.catch(() => {});
+      return result;
     };
   },
 };
@@ -196,6 +290,6 @@ export function normalize(ignore) {
   if (!ignore.sections.length) return [{ items: [] }];
   return ignore.sections.map(section => {
     if (!section || typeof section !== "object") throw new TypeError("Invalid section.");
-    return { title: section.title, description: section.description, items: items(section.items) };
+    return { ...section, title: section.title, description: section.description, items: items(section.items) };
   });
 }
