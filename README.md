@@ -18,6 +18,28 @@ These files are unchanged copies of the releases bundled in the User and Quiz re
 
 The demo loads Slidecast **1.0.0**, PDF Viewer **1.0.0**, Google Login **1.0.1** and their resources externally. Quiz is not included in the demo until a published release is available. The demo, including the sign-in interface, requires an internet connection. Actual authentication also requires a ccm-server. There is no additional demo component.
 
+## 📦 Usage with CDN (versioned)
+
+```html
+<script
+    src="https://cdn.jsdelivr.net/gh/ccmjs/app_collection@v1.0.0/libs/framework/ccm-28.0.0.min.js"
+    integrity="sha384-HDMeDDgKlR2OFJ3ECMwmA6wknqpfpeCiSZYlUhQaFg9FKrvHJp8MMSwrxibvWJ2G"
+    crossorigin="anonymous"
+></script>
+<div id="app-collection"></div>
+<script type="module">
+  const app = await ccm.start(
+      "https://cdn.jsdelivr.net/gh/ccmjs/app_collection@v1.0.0/ccm.app_collection-1.0.0.min.mjs#sha384-Q4krSOdtGOKrXf/O7A+4czbgCbOzNi+cKhrMOEf21PDLS/TQkqwWMhNR9otXGngw",
+      {},
+      document.querySelector("#app-collection")
+  );
+</script>
+```
+
+Place this example inside the document body. It uses the default configuration: an empty collection with English labels and the standard stylesheet. Add your app dependencies under `ignore` as shown below. No local copy of the component or its libraries is needed.
+
+The framework script uses the browser's `integrity` attribute; ccmjs verifies the component using the `#sha384-…` URL fragment. These hashes cover the framework and component files, respectively, not every resource or child app loaded by the collection. The component hash covers the exact published main file, including its source map comment. Update the URL and hash together when changing versions.
+
 ## Shared authentication
 
 The optional `user` property accepts a `ccm.instance` dependency for the User component. App Collection mounts its host in the top-right corner before calling `start()`. The account area remains visible inside folders and open apps. With `autoLogin: true`, the collection waits for sign-in before displaying its content. Omit `user` or set it to `null` to hide the account area.
