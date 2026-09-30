@@ -1,6 +1,14 @@
 /**
  * A home screen for ccmjs apps, folders and widgets.
  *
+ * Data flow: ignore (teacher template) -> normalize -> identify -> resolve(state)
+ * -> sections (editable runtime model) -> capture -> state (names and IDs only).
+ * The teacher template is never edited. Confirmed layouts are cached per account;
+ * persistence is supplied through config callbacks or extensions.
+ *
+ * Code order: configuration, instance lifecycle/rendering, private state helpers,
+ * then the private LayoutEditor class. All runtime logic lives in Instance.
+ *
  * @author André Kless <andre.kless@web.de>
  * @copyright 2026 André Kless
  * @license MIT
@@ -10,11 +18,14 @@
 export const component = {
   name: "app_collection",
   ccm: "././libs/framework/ccm-28.0.0.min.js",
+  /** CCM resolves these dependencies before the instance lifecycle; ignore stays lazy. */
   config: {
     css: ["ccm.load", "././resources/styles.css"],
     title: "My Apps",
     description: "Everything in one place.",
+    /** Maximum grid columns (1–12); CSS reduces this on narrow containers. */
     columns: 4,
+    /** Teacher template: an item/dependency array or { sections: [{ id, title, items }] }. */
     ignore: [],
     // Optional ["ccm.instance", "./libs/user/ccm.user-1.0.0.min.mjs", { ... }].
     // Descendant user instances share this session through their parent chain.
@@ -25,6 +36,7 @@ export const component = {
     onlayoutchange: null,
     /** Optional async ({ app, user }) => personal state or null, called once per user per instance. */
     onlayoutload: null,
+    /** Initial personal layout for the first active account; null uses the teacher template. */
     state: null,
     /** Functions or ccm.load dependencies, called sequentially with { app, type }. */
     extensions: [],
@@ -37,23 +49,39 @@ export const component = {
     },
   },
   Instance: function () {
+    // Runtime views and child apps survive navigation, but are released on start/destroy.
+    // sections is a fresh model derived from ignore; sessions holds cloned, confirmed states.
     let views = new Map(), children = new Set(), pending = new Set(), history = [], current, ui;
+    // Incrementing generation makes pending child loads from an old render obsolete.
     let generation = 0, editor, sections = [];
     const sessions = new Map();
+    /**
+     * Await extensions in config order; a rejection stops the remaining handlers.
+     * Lifecycle: init -> ready -> restore (uncached signed-in account) -> start.
+     * Done emits finish before committing. Persistence extensions may emit stored.
+     * @param {string} type Event name.
+     * @param {Object} [details] Additional event fields; app and type are supplied here.
+     * @returns {Promise<void>}
+     */
     this.emit = async (type, details = {}) => {
       const event = { ...details, app: this, type };
       for (const extension of [].concat(this.extensions || [])) if (extension) await extension(event);
     };
     this.init = async () => this.emit('init');
     this.ready = async () => this.emit('ready');
+    // owner identifies the rendered account. queue serializes starts, including login changes.
     let owner, userListener, queue = Promise.resolve(), rendering = false, destroyed = false;
     const identity = () => {
       const user = this.user?.isLoggedIn?.() ? this.user.getState() : null;
       return user ? JSON.stringify([this.user.url || '', user.realm, user.key]) : 'guest';
     };
+    /** @returns {Object|null} Independent snapshot of state, including unconfirmed edits. */
     this.getLayout = () => this.ccm.helper.clone(this.state);
+    /** Internal editor bridge: publish names/order from sections without saving them. */
     this.updateLayoutState = () => { this.state = capture(sections); };
+    /** Internal editor bridge: cache state only after all save handlers have succeeded. */
     this.commitLayoutState = () => { this.updateLayoutState(); sessions.set(owner, this.getLayout()); };
+    /** Subscribe once; an account change cancels editing and rebuilds the collection. */
     const bindUser = () => {
       if (!this.user || userListener) return;
       userListener = async () => {
@@ -65,6 +93,7 @@ export const component = {
       };
       this.user.extensions = [].concat(this.user.extensions || [], userListener);
     };
+    // DOM helpers use textContent for user-provided labels, never HTML interpolation.
     const node = (tag, className, text) => {
       const el = document.createElement(tag);
       if (className) el.className = className;
@@ -77,10 +106,12 @@ export const component = {
       el.addEventListener("click", action);
       return el;
     };
+    /** Release both the child host and CCM's parent/child registry entry. */
     const release = async child => {
       try { await child.destroy?.(); }
       finally { child.host?.remove(); if (this.children) delete this.children[child.index]; }
     };
+    /** Invalidate pending mounts, await cleanup, and keep personal layout caches intact. */
     const clearUI = async () => {
       generation++;
       editor?.destroy(); editor = null;
@@ -91,6 +122,11 @@ export const component = {
       const failure = results.find(result => result.status === "rejected");
       if (failure) throw failure.reason;
     };
+    /**
+     * Remove account listeners and release child apps, including pending starts.
+     * Await before reusing the instance; a child start that never settles delays cleanup.
+     * @returns {Promise<void>}
+     */
     this.destroy = async () => {
       destroyed = true;
       if (this.user && userListener)
@@ -98,6 +134,7 @@ export const component = {
       userListener = null;
       await clearUI();
     };
+    /** Start one lazy dependency; failures get a local retry without breaking other tiles. */
     const mount = (item, target) => {
       const token = generation;
       const load = async () => {
@@ -136,6 +173,7 @@ export const component = {
       } else el.textContent = item.icon || (item.type === "folder" ? "▦" : "◈");
       return el;
     };
+    /** Cache each view by item identity; hiding it preserves live child instances. */
     const show = (key, title, create, opener) => {
       if (current) { current.view.hidden = true; history.push({ ...current, opener }); }
       let view = views.get(key);
@@ -150,6 +188,7 @@ export const component = {
       ui.home.hidden = history.length === 0;
       if (history.length) ui.heading.focus();
     };
+    /** Restore the previous view and focus the tile that originally opened this one. */
     const back = () => {
       if (!history.length) return;
       current.view.hidden = true;
@@ -158,6 +197,7 @@ export const component = {
       ui.back.hidden = ui.home.hidden = history.length === 0;
       previous.opener?.focus();
     };
+    /** Register editable wrappers; widgets start now, tile apps only when opened. */
     const grid = (items, target) => {
       const el = node("div", "ac-grid"); target.append(el);
       const empty = node("p", "ac-empty", this.labels.empty); empty.hidden = items.length > 0; el.append(empty);
@@ -190,6 +230,7 @@ export const component = {
         }
       }
     };
+    /** Rebuild in order: cleanup -> user host -> account state -> grids -> start event. */
     const render = async () => {
       await clearUI();
       if (destroyed) return;
@@ -217,11 +258,13 @@ export const component = {
       // Attach the host before start(): autoLogin may open a modal and await sign-in.
       if (this.user) await this.user.start();
       const nextOwner = identity();
+      // Only the first account can claim configured state; later accounts use their own cache.
       if (owner !== nextOwner) {
         this.state = owner === undefined ? this.state : null;
         owner = nextOwner;
         if (sessions.has(owner)) this.state = this.ccm.helper.clone(sessions.get(owner));
       }
+      // Recheck identity after async restoration so late results cannot render for another user.
       if (owner !== 'guest' && !sessions.has(owner)) {
         content.textContent = this.labels.loading;
         try {
@@ -258,6 +301,11 @@ export const component = {
       });
       await this.emit('start');
     };
+    /**
+     * Queue a complete rebuild. Re-render if the account changes during async work.
+     * A failed start rejects its caller but does not block later retries in the queue.
+     * @returns {Promise<void>}
+     */
     this.start = () => {
       destroyed = false;
       bindUser();
@@ -273,7 +321,15 @@ export const component = {
       return result;
     };
 
-    /** Normalize and validate before starting any child apps. */
+    // Private template/state helpers. Their input is data, not mounted child instances.
+
+    /**
+     * Create fresh section/item objects and validate dependencies before starting children.
+     * App dependencies retain their callback references and remain unresolved.
+     * @param {Array|Object} ignore Teacher template; never mutated.
+     * @returns {Array<Object>} Normalized sections with app, folder or widget items.
+     * @throws {TypeError} Invalid structure, dependency, widget size or folder depth.
+     */
     function normalize(ignore) {
       let count = 0;
       const items = (values, depth = 0) => {
@@ -303,7 +359,12 @@ export const component = {
       });
     }
 
-    /** Personal state contains only names and item references, never executable app configuration. */
+    /**
+     * Assign missing IDs in place on the normalized model; reject duplicates across all entries.
+     * Explicit IDs survive course updates. Position-based fallbacks only survive stable structure.
+     * @param {Array<Object>} sections Normalized sections, not the original ignore config.
+     * @returns {Array<Object>} The same sections, now with unique IDs.
+     */
     function identify(sections) {
       const ids = new Set();
       const assign = (entry, fallback) => {
@@ -319,15 +380,29 @@ export const component = {
       sections.forEach((section, i) => { assign(section, `section-${i + 1}`); visit(section.items, section.id); });
       return sections;
     }
+    /**
+     * Project the runtime model into persistable names and references; omit app configuration.
+     * @param {Array<Object>} sections Normalized sections with IDs.
+     * @returns {{sections: Array<{id: string, title: string, items: Array}>}} New state tree.
+     */
     function capture(sections) {
       const entry = item => ({ id: item.id, title: item.title || '', ...(item.items ? { items: item.items.map(entry) } : {}) });
       return { sections: sections.map(entry) };
     }
 
-    /** Resolve state against the teacher's current template; ignore removed IDs and append new materials. */
+    /**
+     * Apply saved names/order to a fresh template model, mutating its entries in place.
+     * Resolve dependencies exclusively from the template: saved state cannot inject apps.
+     * Removed IDs disappear; omitted/new materials return to their original containers.
+     * @param {Array<Object>} template Normalized, identified sections.
+     * @param {Object|null} state Personal snapshot; null returns the template unchanged.
+     * @returns {Array<Object>} Sections arranged for this account.
+     * @throws {TypeError} Malformed state, duplicate references or excessive nesting.
+     */
     function resolve(template, state) {
       if (state == null) return template;
       if (!Array.isArray(state.sections)) throw new TypeError('state.sections must be an array.');
+      // Keep original membership separately because applying saved order mutates item arrays.
       const catalog = new Map(), originals = new Map();
       const visit = items => items.forEach(item => {
         catalog.set(item.id, item);
@@ -385,15 +460,28 @@ export const component = {
       return result;
     }
 
-    /** Pointer and keyboard layout editing without rebuilding child apps. */
+    /**
+     * Private editor for the live sections model and its existing DOM wrappers.
+     * begin snapshots names/order; edits update app.state; save awaits persistence;
+     * abort restores the snapshot. Moving wrappers avoids restarting child apps.
+     * All entry points enforce login/editable/busy state, including pointer and keyboard input.
+     */
     class LayoutEditor {
+      /**
+       * @param {Object} app Owning App Collection instance.
+       * @param {Array<Object>} sections Live model shared with rendering and capture().
+       * @param {HTMLElement} root Collection root for status and editing styles.
+       * @param {HTMLElement} toolbar Container for Done/Edit and Cancel controls.
+       */
       constructor(app, sections, root, toolbar) {
         Object.assign(this, { app, sections, root });
+        // grids links model arrays to visible containers; entries links item objects to controls.
         this.grids = [];
         this.entries = new Map();
         this.names = [];
         this.active = false;
         this.busy = false;
+        // A version change invalidates pending save completion after abort or account change.
         this.version = 0;
         this.button = this.make('button', '', app.labels.edit);
         this.button.type = 'button';
@@ -420,6 +508,7 @@ export const component = {
       }
       allowed() { return this.app.editable === true && !!this.app.user?.isLoggedIn?.(); }
       identity() { const user = this.app.user?.getState?.(); return JSON.stringify(user ? [this.app.user.url || '', user.realm, user.key] : null); }
+      /** Reflect permissions and editor state in controls; cancel edits owned by another account. */
       refresh() {
         if (this.active && (!this.allowed() || this.owner !== this.identity())) this.abort();
         this.button.hidden = !this.allowed();
@@ -441,6 +530,7 @@ export const component = {
           heading.hidden = this.active || !heading.textContent;
         }
       }
+      /** Snapshot array membership and titles by reference, so Cancel preserves child instances. */
       begin() {
         if (!this.allowed() || this.busy) return;
         this.owner = this.identity();
@@ -451,12 +541,14 @@ export const component = {
         this.status.textContent = this.app.labels.editHelp;
         this.refresh();
       }
+      /** Collect every section/folder array, including folders whose views have not been opened. */
       allLists() {
         const lists = [];
         const visit = items => { lists.push(items); for (const item of items) if (item.type === 'folder') visit(item.items); };
         this.sections.forEach(s => visit(s.items));
         return lists;
       }
+      /** Invalidate pending saves and restore the snapshot in place; never persist cancelled edits. */
       abort() {
         this.version++;
         this.endDrag();
@@ -470,6 +562,7 @@ export const component = {
         this.status.textContent = '';
         this.refresh();
       }
+      /** Freeze a snapshot, await callbacks and finish extensions, then commit for the same account. */
       async save() {
         if (!this.allowed() || this.busy) return;
         this.endDrag();
@@ -497,6 +590,7 @@ export const component = {
           if (version === this.version) { this.busy = false; this.refresh(); }
         }
       }
+      /** Pair a section heading with its edit field; changes update only the runtime model. */
       section(section, area, index) {
         const heading = this.make('h2', 'ac-section-title', section.title || '');
         const input = this.make('input', 'ac-section-name');
@@ -512,10 +606,12 @@ export const component = {
         this.names.push({ input, heading, section });
         this.refresh();
       }
+      /** Register a grid and its view boundary for legal move destinations. */
       grid(items, el, view) {
         this.grids.push({ items, el, view });
         this.updateChoices();
       }
+      /** Attach rename, keyboard, menu and Pointer Events controls to one existing wrapper. */
       entry(item, el) {
         const controls = this.make('div', 'ac-item-tools');
         const handle = this.make('button', 'ac-drag-handle', '⠿'); handle.type = 'button';
@@ -589,6 +685,7 @@ export const component = {
         for (const type of ['pointercancel', 'lostpointercapture']) handle.addEventListener(type, () => this.endDrag());
         this.updateChoices(); this.refresh();
       }
+      /** Hit-test visible grid rectangles; preview insertion without changing model order. */
       pointer(event) {
         const drag = this.drag;
         if (!drag || drag.id !== event.pointerId) return;
@@ -612,12 +709,14 @@ export const component = {
         }
       }
       clearTarget() { this.target?.classList.remove('ac-drop-target'); this.target = null; }
+      /** Release pointer capture, animation frame, preview and drop marker on every exit path. */
       endDrag() {
         const drag = this.drag; this.drag = null;
         cancelAnimationFrame(this.frame); this.clearTarget();
         drag?.ghost.remove();
         if (drag?.handle.hasPointerCapture(drag.id)) drag.handle.releasePointerCapture(drag.id);
       }
+      /** Move within the current view; before=null appends. Folder boundaries cannot be crossed. */
       move(item, destination, before) {
         if (!this.active || !this.allowed() || this.busy || before === item) return;
         const source = this.grids.find(g => g.items.includes(item));
@@ -629,6 +728,7 @@ export const component = {
         this.sync();
         this.status.textContent = `${this.app.labels.moved} ${item.title}`;
       }
+      /** Reorder existing DOM wrappers, refresh labels, and publish the edited state. */
       sync() {
         for (const grid of this.grids) {
           for (const item of grid.items) {
@@ -654,6 +754,7 @@ export const component = {
         this.updateChoices();
         this.app.updateLayoutState();
       }
+      /** Offer only other grids on the same view; hidden folder views are not destinations. */
       updateChoices() {
         for (const [item, { select }] of this.entries) {
           const source = this.grids.find(g => g.items.includes(item));
@@ -666,6 +767,7 @@ export const component = {
           select.disabled = this.busy || select.options.length < 2;
         }
       }
+      /** Cancel edits and release the editor listener; child cleanup belongs to the collection. */
       destroy() {
         this.abort();
         if (this.app.user) this.app.user.extensions = [].concat(this.app.user.extensions || []).filter(fn => fn !== this.listener);

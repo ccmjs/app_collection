@@ -1,6 +1,16 @@
 /**
  * App Collection extensions follow the Quiz convention: { app, type }, dispatched in order.
  * store restores personal state on restore, saves on finish (Done) and emits stored after success.
+ * Configure layouts: { key: stableCourseKey, store: ["ccm.store", { name, url }] }.
+ * The resolved datastore uses the shared User instance for authentication.
+ *
+ * @param {Object} event Collection event passed through config.extensions.
+ * @param {Object} event.app App Collection instance with layouts and user configured.
+ * @param {string} event.type ready validates config; restore loads; finish saves.
+ * @param {Object} [event.user] Account captured by the caller (realm and key).
+ * @param {Object} [event.state] Snapshot captured on Done; falls back to app.state.
+ * @returns {Promise<void>} Rejects on validation, account changes or datastore failures.
+ * A rejected restore shows retry; a rejected finish keeps the editor open.
  */
 export async function store({ app, type, user, state }) {
   if (!['ready', 'restore', 'finish'].includes(type)) return;
@@ -24,6 +34,7 @@ export async function store({ app, type, user, state }) {
   const key = [course, identity.realm, identity.key];
   const snapshot = type === 'finish' ? structuredClone(state ?? app.state) : null;
   if (type === 'finish') validateState(snapshot);
+  // Read before writing to preserve existing permissions, not reset them on each save.
   const previous = await settings.store.get(key);
   current();
   if (previous && (previous.app !== course || previous.realm !== identity.realm || previous.user !== identity.key))
