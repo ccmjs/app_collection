@@ -8,7 +8,7 @@ All collection logic, including layout editing and personal state handling, is c
 
 Run `python3 -m http.server 8765` in the repository and open `http://localhost:8765`. The English demo uses externally loaded Slidecast and PDF Viewer apps. It includes a PDF widget, documents, nested folders and a slidecast with audio.
 
-The demo configuration is exported as `demo` from `resources/configs.mjs`. The `libs` directory contains only fixed, minified releases with source maps and licenses:
+The demo configuration is exported as `demo` at the top of `resources/configs.mjs`. Shared `pdf` and `slidecast` configurations follow below and are referenced by explicit `ccm.load` dependencies. The `libs` directory contains only fixed, minified releases with source maps and licenses:
 
 - ccm-ui **1.0.0**
 - CCM Framework **28.0.0**
@@ -22,7 +22,7 @@ The demo loads Slidecast **1.0.0**, PDF Viewer **1.0.0**, Google Login **1.0.1**
 
 The optional `user` property accepts a `ccm.instance` dependency for the User component. App Collection mounts its host in the top-right corner before calling `start()`. The account area remains visible inside folders and open apps. With `autoLogin: true`, the collection waits for sign-in before displaying its content. Omit `user` or set it to `null` to hide the account area.
 
-The demo configures the server URL and realm centrally in `authentication` in `resources/configs.mjs`. Defaults are `http://localhost:8080` and realm `ccm`. Child apps can configure their own User instances with the same values. The User component follows the parent chain to find the shared session owner: sign-in, sign-out, status and token access are delegated to that owner, while child sign-in interfaces remain empty. This also works for deeply nested apps. Apps can access the context using `this.ccm.helper.findInAncestors(this, "user")`. Do not move the parent User instance's host into a child app.
+The demo configures authentication directly in `demo.user` in `resources/configs.mjs`. Defaults are `http://localhost:8080` and realm `ccm`. Keep the User URL, Google Login server/realm and `layouts.store` URL consistent when changing servers. Child apps can configure their own User instances with the same values. The User component follows the parent chain to find the shared session owner: sign-in, sign-out, status and token access are delegated to that owner, while child sign-in interfaces remain empty. This also works for deeply nested apps. Apps can access the context using `this.ccm.helper.findInAncestors(this, "user")`. Do not move the parent User instance's host into a child app.
 
 Google Login is loaded from the fixed **1.0.1** CDN release. Its popup uses the hosted callback page configured in the component. For your own deployment, the Google client ID, allowed callback origin and ccm-server configuration must match. Shared authentication does not automatically save app results or replace server-side authorization.
 
