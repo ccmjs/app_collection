@@ -1,9 +1,7 @@
-/** English demo using local core releases and external demo apps. Resource URLs are independent of the embedding page. */
+/** English demo using local core releases and external demo apps. Local resource paths are relative to the embedding HTML page. */
 import { demo as pdfDemo } from 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/resources/configs.mjs';
-const url = path => new URL(path, import.meta.url).href;
-const load = path => ['ccm.load', url(path)];
-const ccm = url('../libs/framework/ccm-28.0.0.min.js');
-const ui = load('../libs/ccm-ui/ccm-ui-1.0.0.min.mjs');
+const ccm = './libs/framework/ccm-28.0.0.min.js';
+const ui = ['ccm.load', './libs/ccm-ui/ccm-ui-1.0.0.min.mjs'];
 
 /** Change these together so descendant user instances join the collection's session. */
 export const authentication = {
@@ -15,20 +13,20 @@ export const authentication = {
 const pdf = {
   ccm,
   ...pdfDemo,
-  pdf: url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/resources/demo.pdf'),
-  pdfjs: load('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/pdf.min.mjs'),
-  css: ['ccm.load', url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/pdf_viewer.css'), url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/resources/styles.css')],
-  worker: url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/pdf.worker.min.mjs'),
-  cMaps: url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/cmaps/'),
-  fonts: url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/standard_fonts/'),
-  wasm: url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/wasm/'),
+  pdf: 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/resources/demo.pdf',
+  pdfjs: ['ccm.load', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/pdf.min.mjs'],
+  css: ['ccm.load', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/pdf_viewer.css', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/resources/styles.css'],
+  worker: 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/pdf.worker.min.mjs',
+  cMaps: 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/cmaps/',
+  fonts: 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/standard_fonts/',
+  wasm: 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/libs/pdfjs/wasm/',
 };
-const pdfApp = () => ['ccm.start', url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/ccm.pdf_viewer-1.0.0.min.mjs'), pdf];
+const pdfApp = () => ['ccm.start', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/ccm.pdf_viewer-1.0.0.min.mjs', pdf];
 const slidecast = {
   ccm,
-  css: load('https://cdn.jsdelivr.net/gh/ccmjs/slidecast@v1.0.0/resources/styles.css'),
+  css: ['ccm.load', 'https://cdn.jsdelivr.net/gh/ccmjs/slidecast@v1.0.0/resources/styles.css'],
   pdf: pdf.pdf,
-  pdf_viewer: ['ccm.component', url('https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/ccm.pdf_viewer-1.0.0.min.mjs'), pdf],
+  pdf_viewer: ['ccm.component', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/ccm.pdf_viewer-1.0.0.min.mjs', pdf],
   viewer: { labels: pdfDemo.labels },
   autoplay: false,
   labels: {
@@ -40,7 +38,7 @@ const slidecast = {
   },
   ignore: { slides: [
     { page: 1, description: '<h2>Welcome to the course</h2><p>Explore the slides and accompanying materials.</p>',
-      audio: url('https://cdn.jsdelivr.net/gh/ccmjs/slidecast@v1.0.0/resources/welcome.mp3') },
+      audio: 'https://cdn.jsdelivr.net/gh/ccmjs/slidecast@v1.0.0/resources/welcome.mp3' },
     { page: 2, description: '<p>Try selecting text or following a link in the document.</p>' },
     { page: 3, description: '<p>You have reached the end of this introduction.</p>' },
   ] },
@@ -48,13 +46,13 @@ const slidecast = {
 
 export const demo = {
   editable: true,
-  extensions: [load('./extensions.mjs#store')],
+  extensions: [['ccm.load', './resources/extensions.mjs#store']],
   layouts: {
     key: 'web_technologies',
     store: ['ccm.store', { name: 'app_collection_layouts', url: authentication.url }],
   },
   ccm,
-  css: load('./styles-hbrs.css'),
+  css: ['ccm.load', './resources/styles-hbrs.css'],
   title: 'My Campus',
   description: 'Web technologies · Course materials and lectures',
   labels: {
@@ -63,15 +61,15 @@ export const demo = {
   },
   // Use ccm.instance: App Collection mounts the user host before starting it.
   // Remove user (or set it to null) for a collection without an account area.
-  user: ['ccm.instance', url('../libs/user/ccm.user-1.0.0.min.mjs'), {
+  user: ['ccm.instance', './libs/user/ccm.user-1.0.0.min.mjs', {
     ...authentication,
-    providers: [['ccm.instance', url('https://cdn.jsdelivr.net/gh/ccmjs/google_login@v1.0.1/ccm.google_login-1.0.1.min.mjs'), {
+    providers: [['ccm.instance', 'https://cdn.jsdelivr.net/gh/ccmjs/google_login@v1.0.1/ccm.google_login-1.0.1.min.mjs', {
       ccm,
       server: authentication.url,
       realm: authentication.realm,
       ui,
-      views: load('https://cdn.jsdelivr.net/gh/ccmjs/google_login@v1.0.1/resources/views.mjs'),
-      css: load('https://cdn.jsdelivr.net/gh/ccmjs/google_login@v1.0.1/resources/styles.css'),
+      views: ['ccm.load', 'https://cdn.jsdelivr.net/gh/ccmjs/google_login@v1.0.1/resources/views.mjs'],
+      css: ['ccm.load', 'https://cdn.jsdelivr.net/gh/ccmjs/google_login@v1.0.1/resources/styles.css'],
       // Keep the hosted callback whose origin is registered for the provider's public client ID.
       url: 'https://ccmjs.github.io/google_login/auth.html',
     }]],
@@ -89,7 +87,7 @@ export const demo = {
     ] },
     { id: 'chapter-1', title: 'Chapter 1 · Web fundamentals', description: 'Follow the lecture and explore the accompanying documents.', items: [
       { id: 'lecture', title: 'Lecture', icon: '🎬', description: 'Slides and audio',
-        app: ['ccm.start', url('https://cdn.jsdelivr.net/gh/ccmjs/slidecast@v1.0.0/ccm.slidecast-1.0.0.min.mjs'), slidecast] },
+        app: ['ccm.start', 'https://cdn.jsdelivr.net/gh/ccmjs/slidecast@v1.0.0/ccm.slidecast-1.0.0.min.mjs', slidecast] },
       { id: 'slides', title: 'Lecture slides', icon: '📑', description: 'Open the PDF directly', app: pdfApp() },
     ] },
   ] },

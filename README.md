@@ -156,7 +156,7 @@ Use a stable `layouts.key` for each course collection (`app.key` is the fallback
 
 The extension loads the saved state on `restore` and writes it on `finish`. After a successful write it emits `stored`. New datasets receive owner-only read, write and delete permissions; updates preserve existing access rules. Reloading the page restores the signed-in user's saved layout. **Cancel** and signing out discard unconfirmed edits without saving them. A loading failure displays a retry action; a saving failure keeps the editor open for retry or cancellation.
 
-The optional initial `state` belongs to the account active on first start. Restore saved layouts through `state`, not `ignore`. UI labels, including editor labels, are configurable through `labels`.
+`this.state` is runtime instance state, not a configuration option. The editor updates it; persistence extensions restore saved layouts by assigning `app.state`. The teacher template remains in `ignore`. UI labels, including editor labels, are configurable through `labels`.
 
 For custom integrations, `onlayoutload({ app, user })` and `onlayoutchange({ app, state, user })` remain available. The load callback returns a personal state or `null` for the template; the save callback also receives `layout` as an alias of `state`. These callbacks run before the corresponding `restore` and `finish` extensions. Choose one persistence integration to avoid duplicate writes.
 

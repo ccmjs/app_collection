@@ -27,17 +27,14 @@ export const component = {
     columns: 4,
     /** Teacher template: an item/dependency array or { sections: [{ id, title, items }] }. */
     ignore: [],
-    // Optional ["ccm.instance", "./libs/user/ccm.user-1.0.0.min.mjs", { ... }].
     // Descendant user instances share this session through their parent chain.
-    user: null,
+    // user: ["ccm.instance", "././libs/user/ccm.user-1.0.0.min.mjs"],
     /** Allow signed-in users to edit the layout. */
     editable: false,
     /** Optional async ({ app, state, user }) persistence callback, called on Done. */
     onlayoutchange: null,
     /** Optional async ({ app, user }) => personal state or null, called once per user per instance. */
     onlayoutload: null,
-    /** Initial personal layout for the first active account; null uses the teacher template. */
-    state: null,
     /** Functions or ccm.load dependencies, called sequentially with { app, type }. */
     extensions: [],
     labels: { back: "Back", home: "Overview", loading: "Loading …", retry: "Try again",
@@ -49,6 +46,9 @@ export const component = {
     },
   },
   Instance: function () {
+    /** Runtime layout for the active account; restored by extensions and updated by the editor. */
+    this.state = null;
+
     // Runtime views and child apps survive navigation, but are released on start/destroy.
     // sections is a fresh model derived from ignore; sessions holds cloned, confirmed states.
     let views = new Map(), children = new Set(), pending = new Set(), history = [], current, ui;
@@ -137,7 +137,7 @@ export const component = {
     /** Start one lazy dependency; failures get a local retry without breaking other tiles. */
     const mount = (item, target) => {
       const token = generation;
-      const load = async () => {
+      const startChild = async () => {
         target.replaceChildren(node("p", "ac-status", this.labels.loading));
         target.setAttribute("aria-busy", "true");
         const host = node("div", "ac-child");
@@ -155,7 +155,7 @@ export const component = {
           await Promise.allSettled(partial.map(release));
           if (token !== generation) return;
           target.replaceChildren(node("p", "ac-status", this.labels.error));
-          target.append(button(this.labels.retry, () => track(load()), "ac-retry"));
+          target.append(button(this.labels.retry, () => track(startChild()), "ac-retry"));
           console.error("App Collection:", error);
         } finally { target.removeAttribute("aria-busy"); }
       };
@@ -163,7 +163,7 @@ export const component = {
         pending.add(promise);
         promise.finally(() => pending.delete(promise));
       };
-      track(load());
+      track(startChild());
     };
     const icon = item => {
       const el = node("span", "ac-icon");
@@ -258,7 +258,7 @@ export const component = {
       // Attach the host before start(): autoLogin may open a modal and await sign-in.
       if (this.user) await this.user.start();
       const nextOwner = identity();
-      // Only the first account can claim configured state; later accounts use their own cache.
+      // Preserve state restored before first start; subsequent accounts use their own cache.
       if (owner !== nextOwner) {
         this.state = owner === undefined ? this.state : null;
         owner = nextOwner;
