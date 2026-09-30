@@ -2,6 +2,8 @@
 
 A ccmjs component that brings apps together as tiles, sections, folders and embedded widgets. Suitable for course portals and student support resources.
 
+All collection logic, including layout editing and personal state handling, is contained in `ccm.app_collection.mjs`. Its helper functions and layout editor class are private to `Instance`; only the component definition is exported. The component has no static imports of internal modules. Stylesheets, User instances, child apps and optional extensions are supplied through `config`.
+
 ## Getting started
 
 Run `python3 -m http.server 8765` in the repository and open `http://localhost:8765`. The English demo uses externally loaded Slidecast and PDF Viewer apps. It includes a PDF widget, documents, nested folders and a slidecast with audio.
