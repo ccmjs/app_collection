@@ -29,7 +29,7 @@ The demo loads Slidecast **1.0.0**, PDF Viewer **1.0.0**, Google Login **1.0.1**
 <div id="app-collection"></div>
 <script type="module">
   const app = await ccm.start(
-      "https://cdn.jsdelivr.net/gh/ccmjs/app_collection@v1.0.0/ccm.app_collection-1.0.0.min.mjs#sha384-Q4krSOdtGOKrXf/O7A+4czbgCbOzNi+cKhrMOEf21PDLS/TQkqwWMhNR9otXGngw",
+      "https://cdn.jsdelivr.net/gh/ccmjs/app_collection@v1.1.0/ccm.app_collection-1.1.0.min.mjs#sha384-PE0gFz7ejKBfiVk9XXJaHvDmUaYMSqZI6eKSJZSYUMUxRJD3LB0ViXuHIwVI83ev",
       {},
       document.querySelector("#app-collection")
   );
