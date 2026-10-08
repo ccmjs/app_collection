@@ -184,7 +184,7 @@
   }
 }
 
-.app-collection :is(button, input, select, .ac-heading):focus-visible {
+.app-collection :is(button, input, select, .ac-tile, .ac-heading):focus-visible {
   outline: 3px solid var(--ac-action);
   outline-offset: 4px;
 }

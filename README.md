@@ -1,12 +1,12 @@
 # App Collection
 
-A ccmjs component that brings apps together as tiles, sections, folders and embedded widgets. Suitable for course portals and student support resources.
+A ccmjs component that brings apps and web links together as tiles, sections, folders and embedded widgets. Suitable for course portals and student support resources.
 
 All collection logic, including layout editing and personal state handling, is contained in `ccm.app_collection.mjs`. Its helper functions and layout editor class are private to `Instance`; only the component definition is exported. The component has no static imports of internal modules. Stylesheets, User instances, child apps and optional extensions are supplied through `config`.
 
 ## Getting started
 
-Run `python3 -m http.server 8765` in the repository and open `http://localhost:8765`. The English demo uses externally loaded Slidecast and PDF Viewer apps. It includes a PDF widget, documents, nested folders and a slidecast with audio.
+Run `python3 -m http.server 8765` in the repository and open `http://localhost:8765`. The English demo uses externally loaded Slidecast and PDF Viewer apps. It includes a PDF widget, documents, a website link, nested folders and a slidecast with audio.
 
 The demo configuration is exported as `demo` at the top of `resources/configs.mjs`. Shared `pdf` and `slidecast` configurations follow below and are referenced by explicit `ccm.load` dependencies. The `libs` directory contains only fixed, minified releases with source maps and licenses:
 
@@ -97,20 +97,40 @@ const config = {
 };
 ```
 
-App and folder objects can also appear directly in the `ignore` array. An `items` property identifies a folder; `type: 'folder'` is optional. Folders can be nested up to 20 levels deep. Entries without titles receive generated names such as `App 1` or `Folder 1`. `icon` accepts text, emoji or an image URL starting with `https://`, `http://`, `./` or `/`. Titles and descriptions are rendered as plain text.
+App, link and folder objects can also appear directly in the `ignore` array. An `items` property identifies a folder; `type: 'folder'` is optional. Folders can be nested up to 20 levels deep. Entries without titles receive generated names such as `App 1` or `Folder 1`. `icon` accepts text, emoji or an image URL starting with `https://`, `http://`, `./` or `/`. Titles and descriptions are rendered as plain text.
 
 | Option | Description | Default |
 | --- | --- | --- |
 | `title` | Collection title | `My Apps` |
 | `description` | Introductory text | `Everything in one place.` |
 | `columns` | Maximum number of columns (1–12) | `4` |
-| `type` | `app`, `folder` or `widget` | inferred |
+| `type` | `app`, `link`, `folder` or `widget` | inferred |
 | `width` | Widget width in grid cells (1–12) | `2` |
 | `height` | Widget height in grid cells (1–12) | `2` |
 | `labels` | Customizable interface text; see the component | English |
 | `css` | ccm.load dependency for the stylesheet | `resources/styles.css` |
 
 Array order determines placement. The grid switches to two or one column in narrow containers, and widgets adjust their width accordingly. Rows are at least 156 px tall and grow with their content. Width and height specify cell spans, not fixed pixel dimensions. Explicit coordinates and creating or deleting apps in the interface are not included.
+
+## Link tiles (since 1.1.0)
+
+Set `href` instead of `app` to open a website in a new tab. `type: 'link'` is optional. Links work in sections and folders and can be renamed and rearranged like app tiles.
+
+```js
+ignore: [
+  {
+    id: 'university',
+    title: 'University website',
+    icon: '🔗',
+    description: 'Opens in a new tab',
+    href: 'https://www.h-brs.de/en',
+  },
+],
+```
+
+Links use native anchors with `target="_blank"` and `rel="noopener noreferrer"`. HTTP(S) URLs and relative paths are supported; relative paths resolve against the embedding document. Other schemes, including `javascript:` and `data:`, are rejected. Personal state stores only names and ordering; link destinations remain part of the teacher's template.
+
+The CDN example above still references published **1.0.0**, which does not support link tiles. To use links, load **1.1.0** after publication and update its URL and integrity hash together, or use the local component.
 
 ## Alternative H-BRS theme
 
@@ -126,7 +146,7 @@ Load the alternative stylesheet on its own: it imports `styles.css` automaticall
 
 Set `editable: true` and configure a `user` instance to enable editing for signed-in users. The demo enables this option. Signed-out users and collections without a User instance cannot edit.
 
-Choose **Edit layout** to rename sections and rearrange app tiles, folders and widgets. Drag the dedicated handle with a mouse, pen or touch contact. Pointer Events and pointer capture provide a shared interaction model; touch scrolling remains available outside the handles. The page scrolls near its edges while dragging. Drop before an item or at the end of a grid. Items can move between sections on the current view. Inside a folder, items can be reordered; moving into or out of folders is not currently supported.
+Choose **Edit layout** to rename sections and rearrange app tiles, links, folders and widgets. Drag the dedicated handle with a mouse, pen or touch contact. Pointer Events and pointer capture provide a shared interaction model; touch scrolling remains available outside the handles. The page scrolls near its edges while dragging. Drop before an item or at the end of a grid. Items can move between sections on the current view. Inside a folder, items can be reordered; moving into or out of folders is not currently supported.
 
 For keyboard use, focus a handle and press an arrow key to move one position backward or forward. The adjacent menu moves an item to another section. **Done** applies changes, while **Cancel** restores the layout from the start of editing. Signing out or switching accounts cancels unfinished edits. Child app instances are preserved when their tiles move.
 

@@ -69,6 +69,8 @@
 
 .ac-tile {
   font: inherit;
+  text-align: center;
+  text-decoration: none;
   color: inherit;
   border: 1px solid #dce5ed;
   background: #fff;
@@ -146,7 +148,7 @@
   min-width: 0;
 }
 
-button:focus-visible, .ac-heading:focus-visible {
+button:focus-visible, .ac-tile:focus-visible, .ac-heading:focus-visible {
   outline: 3px solid #2476aa;
   outline-offset: 4px;
 }

@@ -35,6 +35,7 @@ export const demo = {
     { id: 'start', title: 'Start here', description: 'Everything you need for your first session.', items: [
       { type: 'widget', id: 'preview', title: 'Document preview', width: 2, height: 2, app: ['ccm.start', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/ccm.pdf_viewer-1.0.0.min.mjs', ['ccm.load', '././resources/configs.mjs#pdf']] },
       { id: 'handbook', title: 'Course handbook', icon: '📖', description: 'Read, search visually and download', app: ['ccm.start', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/ccm.pdf_viewer-1.0.0.min.mjs', ['ccm.load', '././resources/configs.mjs#pdf']] },
+      { id: 'university', title: 'University website', icon: '🔗', description: 'Opens in a new tab', href: 'https://www.h-brs.de/en' },
       { id: 'resources', title: 'Study resources', icon: '📁', items: [
         { id: 'reference', title: 'Reference document', icon: '📄', app: ['ccm.start', 'https://cdn.jsdelivr.net/gh/ccmjs/pdf_viewer@v1.0.0/ccm.pdf_viewer-1.0.0.min.mjs', ['ccm.load', '././resources/configs.mjs#pdf']] },
         { id: 'reading', title: 'Further reading', icon: '📚', items: [

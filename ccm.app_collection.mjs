@@ -1,5 +1,5 @@
 /**
- * A home screen for ccmjs apps, folders and widgets.
+ * A home screen for ccmjs apps, links, folders and widgets.
  *
  * Data flow: ignore (teacher template) -> normalize -> identify -> resolve(state)
  * -> sections (editable runtime model) -> capture -> state (names and IDs only).
@@ -12,7 +12,7 @@
  * @author André Kless <andre.kless@web.de>
  * @copyright 2026 André Kless
  * @license MIT
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 export const component = {
@@ -170,7 +170,7 @@ export const component = {
       el.setAttribute("aria-hidden", "true");
       if (item.icon?.startsWith("https://") || item.icon?.startsWith("http://") || item.icon?.startsWith("./") || item.icon?.startsWith("/")) {
         const img = node("img"); img.src = item.icon; img.alt = ""; el.append(img);
-      } else el.textContent = item.icon || (item.type === "folder" ? "▦" : "◈");
+      } else el.textContent = item.icon || (item.type === "folder" ? "▦" : item.type === "link" ? "🔗" : "◈");
       return el;
     };
     /** Cache each view by item identity; hiding it preserves live child instances. */
@@ -219,10 +219,15 @@ export const component = {
           const content = node("div", "ac-widget-content"); card.append(content); wrapper.append(card);
           mount(item, content);
         } else {
-          const tile = button("", () => show(item, item.title, view => {
+          const tile = item.type === "link" ? node("a", "ac-tile") : button("", () => show(item, item.title, view => {
             if (item.type === "folder") grid(item.items, view);
             else mount(item, view);
           }, tile), "ac-tile");
+          if (item.type === "link") {
+            tile.href = item.href;
+            tile.target = "_blank";
+            tile.rel = "noopener noreferrer";
+          }
           tile.append(icon(item), node("span", "ac-tile-title", item.title));
           if (item.type === "folder") tile.append(node("span", "ac-caption", `${this.labels.folder} · ${item.items.length}`));
           else if (item.description) tile.append(node("span", "ac-caption", item.description));
@@ -327,8 +332,8 @@ export const component = {
      * Create fresh section/item objects and validate dependencies before starting children.
      * App dependencies retain their callback references and remain unresolved.
      * @param {Array|Object} ignore Teacher template; never mutated.
-     * @returns {Array<Object>} Normalized sections with app, folder or widget items.
-     * @throws {TypeError} Invalid structure, dependency, widget size or folder depth.
+     * @returns {Array<Object>} Normalized sections with app, link, folder or widget items.
+     * @throws {TypeError} Invalid structure, dependency, link URL, widget size or folder depth.
      */
     function normalize(ignore) {
       let count = 0;
@@ -338,10 +343,20 @@ export const component = {
         return values.map(value => {
           const item = Array.isArray(value) ? { app: value } : value;
           if (!item || typeof item !== "object") throw new TypeError("Invalid collection item.");
-          const type = item.type || (item.items ? "folder" : "app");
-          if (!["app", "folder", "widget"].includes(type)) throw new TypeError(`Unknown item type: ${type}`);
-          const title = item.title || `${type === "folder" ? "Folder" : "App"} ${++count}`;
+          const type = item.type || (item.items ? "folder" : item.href !== undefined ? "link" : "app");
+          if (!["app", "link", "folder", "widget"].includes(type)) throw new TypeError(`Unknown item type: ${type}`);
+          const title = item.title || `${type === "folder" ? "Folder" : type === "link" ? "Link" : "App"} ${++count}`;
           if (type === "folder") return { ...item, type, title, items: items(item.items, depth + 1) };
+          if (type === "link") {
+            // Validate web links, including relative paths, without resolving against the current page.
+            // Keep the configured URL so the browser resolves it against the embedding document.
+            const href = typeof item.href === "string" ? item.href.trim() : "";
+            let protocol;
+            try { protocol = new URL(href, "https://collection.invalid/").protocol; } catch { /* Rejected below. */ }
+            if (!href || !["http:", "https:"].includes(protocol))
+              throw new TypeError(`${title}: href must be an HTTP(S) URL or a relative web URL.`);
+            return { ...item, type, title, href };
+          }
           if (!Array.isArray(item.app) || item.app[0] !== "ccm.start" || !item.app[1])
             throw new TypeError(`${title}: app must be a ccm.start dependency.`);
           const width = item.width ?? 2, height = item.height ?? 2;
